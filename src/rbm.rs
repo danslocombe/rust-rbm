@@ -1,54 +1,59 @@
-extern crate rand;
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
-struct Neuron {   
-    state  : i8,
-    bias   : f32,
-    weights: Vec<f32>,
+use rulinalg::matrix::{Matrix, BaseMatrix};
+use rulinalg::vector::Vector;
+
+pub struct RBM{
+    visible_size : usize, 
+    hidden_size  : usize, 
+    weights      : Matrix<f32>,
+    vbias        : Vector<f32>,
+    hbias        : Vector<f32>,
 }
 
-impl Neuron {
-    fn field(&self, connections : &Vec<Neuron>) -> f32 {
-        let inputs : Vec<f32> = connections.iter().zip(self.weights.iter())
-                                                  .map(|(n, &y)|(n.state as f32)*y)
-                                                  .collect();
-        self.bias + inputs.iter().fold(0.0, |sum, x| sum + x)
+impl RBM{
+    fn propHidden (self, hidden : &Vector<f32>) -> Vector<f32> {
+        let mut vs = self.weights * hidden + self.vbias;
+        vs.iter_mut().map(|field| stepUpdate(field.to_owned()));
+        vs
+    }
+    fn propVisible (self, visible : &Vector<f32>) -> Vector<f32> {
+        let mut hs = self.weights.transpose() * visible + self.hbias;
+        hs.iter_mut().map(|field| stepUpdate(field.to_owned()));
+        hs
     }
 }
 
-fn detUpdate(n : &Neuron, connections : &Vec<Neuron>) -> Neuron {
-    let new_state = if n.field(connections) >= 0.0 {1} else {-1};
-    Neuron {state : new_state, bias : n.bias, weights : n.weights.clone()}
+fn stepUpdate(x : f32) -> f32 {
+    if x > 0.0 {1.0} else {0.0}
 }
 
-fn stochUpdate(n : &Neuron, connections : &Vec<Neuron>, t : f32) -> Neuron {
-    let ht = -n.field(connections) / t;
-    let p = 1.0 / (1.0 + ht.exp());
-    let rand : f32 = rand::thread_rng().gen_range(0.0, 1.0);
-    let new_state = if rand < p {1} else {0};
-    Neuron {state : new_state, bias : n.bias, weights : n.weights.clone()}
+pub fn randomiseWeightMatrix (vsize : usize, hsize : usize) -> Matrix<f32> {
+    let mut ws_values = Vec::new();
+    for i in 0..(vsize * hsize) {
+        ws_values.push(thread_rng().gen_range(0.0, 1.0));
+    }
+
+    Matrix::new(vsize, hsize, ws_values)
 }
 
-struct RBM {
-    size   : i32,
-    visible: Vec<Neuron>,
-    hidden : Vec<Neuron>,
-}
+pub fn createRBM (vsize : usize, hsize : usize, wm : &mut Matrix<f32>) -> RBM {
 
-impl RBM {
-    fn update<F>(&self, update : F) -> RBM where
-        F: Fn(&Neuron, &Vec<Neuron>) -> Neuron{
+    let mut vb = Vec::new();
+    for i in 0..vsize {
+        vb.push(thread_rng().gen_range(-1.0, 1.0));
+    }
 
-        let mut new_vis : Vec<Neuron> = Vec::new();
-        for n in &self.visible {
-            let x = update(&n, &self.hidden); 
-            new_vis.push(x);
-        }
-        let mut new_hid : Vec<Neuron> = Vec::new();
-        for n in &self.hidden {
-            let x = update(&n, &self.visible); 
-            new_hid.push(x);
-        }
-        RBM {size : self.size, visible: new_vis, hidden : new_hid}
+    let mut hb = Vec::new();
+    for i in 0..hsize {
+        vb.push(thread_rng().gen_range(-1.0, 1.0));
+    }
+
+    RBM {
+        visible_size : vsize,
+        hidden_size  : hsize,
+        weights      : randomiseWeightMatrix(vsize, hsize),
+        vbias        : Vector::new(vb),
+        hbias        : Vector::new(hb),
     }
 }

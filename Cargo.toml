@@ -4,5 +4,6 @@ version = "0.1.0"
 authors = ["Dan Slocombe <ds4314@ic.ac.uk>"]
 
 [dependencies]
-rand = "*"
-csv = "*"
+rand = "0.3.14"
+csv = "0.14.7"
+rulinalg = "0.3.7"

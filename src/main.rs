@@ -1,4 +1,6 @@
 extern crate csv;
+extern crate rulinalg;
+extern crate rand;
 
 mod rbm;
 
@@ -9,21 +11,21 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
+type Input = Vec<u8>;
+
 fn main() {
     
     let mut args = env::args();
 
+    args.next();
+    let infile = match args.next(){
+        Some(x) => x,
+        None => panic!("")
+    };
     println!("Loading input from files...");
-    if args.len() > 1 {
-        args.next();
-        for a in args {
-            inputsFromFile(&a);
-        }
-    }
+    let inputs = inputsFromFile(&infile);
     println!("Done");
 }
-
-type Input = Vec<u8>;
 
 fn inputsFromFile(filename : &String) -> Vec<Input> {
     let f = readfile(&filename);
