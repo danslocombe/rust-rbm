@@ -50,13 +50,21 @@ impl RBM{
             let vk = self.prop_hidden(&h0);
             let hk = self.prop_visible(&vk);
 
-
+            //  Update delta weights
             for i in 1..self.visible_size{
                 for j in 1..self.hidden_size{
                     d_weights[[i, j]] += h0[j] * v0[i] - hk[j] * vk[i];
-                    d_vbiases[i] += v0[i] - vk[i];
-                    d_hbiases[j] += h0[j] - hk[j];
                 }
+            }
+
+            //  Update delta weights for visible layer
+            for i in 1..self.visible_size{
+                d_vbiases[i] += v0[i] - vk[i];
+            }
+
+            //  Update delta weights for hidden layer
+            for j in 1..self.hidden_size{
+                d_hbiases[j] += h0[j] - hk[j];
             }
 
         }
@@ -72,19 +80,25 @@ impl RBM{
             for j in 1..self.hidden_size{
                 //  TODO adjust based on d_weights derivitive
                 self.weights[[i, j]] += lr * d_weights[[i, j]] - ll2 * self.weights[[i, j]];
-                self.vbias[i] += lr * d_vbiases[i] - ll2 * self.vbias[i];
-                self.hbias[j] += lr * d_hbiases[j] - ll2 * self.hbias[j];
             }
+        }
+
+        for i in 1..self.visible_size{
+            self.vbias[i] += lr * d_vbiases[i] - ll2 * self.vbias[i];
+        }
+
+        for j in 1..self.hidden_size{
+            self.hbias[j] += lr * d_hbiases[j] - ll2 * self.hbias[j];
         }
     }
 
     pub fn sample(&self) -> Vector<f32> {
-        //  Create random vector
+
         let mut v = Vector::from(rand_vec(self.visible_size));
         let mut h = self.prop_visible(&v);
 
         let mcmcs = 32;
-        for i in 1..mcmcs {
+        for _ in 1..mcmcs {
             h = self.prop_visible(&v);
             v = self.prop_hidden(&h);
         }
@@ -94,7 +108,7 @@ impl RBM{
 
 fn rand_vec(size : usize) -> Vec<f32> {
     let mut v = Vec::new();
-    for i in 0..(size) {
+    for _ in 0..(size) {
         v.push(thread_rng().gen_range(0.0, 1.0));
     }
     v
@@ -111,7 +125,7 @@ fn sigmoid (x : f32) -> f32{
 
 pub fn randomise_weight_matrix(vsize : usize, hsize : usize) -> Matrix<f32> {
     let mut ws_values = Vec::new();
-    for i in 0..(vsize * hsize) {
+    for _ in 0..(vsize * hsize) {
         ws_values.push(thread_rng().gen_range(0.0, 1.0));
     }
 
@@ -122,12 +136,12 @@ pub fn randomise_weight_matrix(vsize : usize, hsize : usize) -> Matrix<f32> {
 pub fn create_rbm(vsize : usize, hsize : usize) -> RBM {
 
     let mut vb = Vec::new();
-    for i in 0..vsize {
+    for _ in 0..vsize {
         vb.push(thread_rng().gen_range(-1.0, 1.0));
     }
 
     let mut hb = Vec::new();
-    for i in 0..hsize {
+    for _ in 0..hsize {
         hb.push(thread_rng().gen_range(-1.0, 1.0));
     }
 
