@@ -31,6 +31,65 @@ impl RBM{
             collect::<Vec<f32>>()
         )
     }
+
+    pub fn epoch (&mut self, batch : &Vec<Input>){
+
+        let mut d_weights : Matrix<f32> = Matrix::zeros(self.visible_size, self.hidden_size);
+        let mut d_vbiases : Vector<f32> = Vector::zeros(self.visible_size);
+        let mut d_hbiases : Vector<f32> = Vector::zeros(self.hidden_size);
+
+
+        for v_batch in batch{
+
+            //  Convert to Vec of f32
+            let v_batch1 = v_batch.iter().map(|x| x.to_owned() as f32).collect::<Vec<f32>>();
+
+            //  Contrastive divergence, for now k = 1
+            let v0 = Vector::from(v_batch1);
+            let h0 = self.prop_visible(&v0);
+            let vk = self.prop_hidden(&h0);
+            let hk = self.prop_visible(&vk);
+
+
+            for i in 1..self.visible_size{
+                for j in 1..self.hidden_size{
+                    d_weights[[i, j]] += h0[j] * v0[i] - hk[j] * vk[i];
+                    d_vbiases[i] += v0[i] - vk[i];
+                    d_hbiases[j] += h0[j] - hk[j];
+                }
+            }
+
+        }
+
+        let learning_rate = 0.05;
+        let ll2 = 0.01;
+        let v = 0.01;
+
+        let batch_size = batch.len() as f32;
+        let lr = learning_rate / batch_size;
+
+        for i in 1..self.visible_size{
+            for j in 1..self.hidden_size{
+                //  TODO adjust based on d_weights derivitive
+                self.weights[[i, j]] += lr * d_weights[[i, j]] - ll2 * self.weights[[i, j]];
+                self.vbias[i] += lr * d_vbiases[i] - ll2 * self.vbias[i];
+                self.hbias[j] += lr * d_hbiases[j] - ll2 * self.hbias[j];
+            }
+        }
+    }
+
+    pub fn sample(&self) -> Vector<f32> {
+        //  Create random vector
+        let mut v = Vector::from(rand_vec(self.visible_size));
+        let mut h = self.prop_visible(&v);
+
+        let mcmcs = 32;
+        for i in 1..mcmcs {
+            h = self.prop_visible(&v);
+            v = self.prop_hidden(&h);
+        }
+        v
+    }
 }
 
 fn rand_vec(size : usize) -> Vec<f32> {
@@ -59,65 +118,6 @@ pub fn randomise_weight_matrix(vsize : usize, hsize : usize) -> Matrix<f32> {
     Matrix::new(vsize, hsize, ws_values)
 }
 
-//fn epoch (rbm : &mut RBM, batch : &Vec<Input>, labels : &Vec<Label>){
-pub fn epoch (rbm : &mut RBM, batch : &Vec<Input>){
-
-    let mut d_weights : Matrix<f32> = Matrix::zeros(rbm.visible_size, rbm.hidden_size);
-    let mut d_vbiases : Vector<f32> = Vector::zeros(rbm.visible_size);
-    let mut d_hbiases : Vector<f32> = Vector::zeros(rbm.hidden_size);
-
-
-    for v_batch in batch{
-
-        //  Convert to Vec of f32
-        let v_batch1 = v_batch.iter().map(|x| x.to_owned() as f32).collect::<Vec<f32>>();
-
-        //  Contrastive divergence, for now k = 1
-        let v0 = Vector::from(v_batch1);
-        let h0 = rbm.prop_visible(&v0);
-        let vk = rbm.prop_hidden(&h0);
-        let hk = rbm.prop_visible(&vk);
-
-
-        for i in 1..rbm.visible_size{
-            for j in 1..rbm.hidden_size{
-                d_weights[[i, j]] += h0[j] * v0[i] - hk[j] * vk[i];
-                d_vbiases[i] += v0[i] - vk[i];
-                d_hbiases[j] += h0[j] - hk[j];
-            }
-        }
-
-    }
-
-    let learning_rate = 0.05;
-    let ll2 = 0.01;
-    let v = 0.01;
-
-    let batch_size = batch.len() as f32;
-    let lr = learning_rate / batch_size;
-
-    for i in 1..rbm.visible_size{
-        for j in 1..rbm.hidden_size{
-            //  TODO adjust based on d_weights derivitive
-            rbm.weights[[i, j]] += lr * d_weights[[i, j]] - ll2 * rbm.weights[[i, j]];
-            rbm.vbias[i] += lr * d_vbiases[i] - ll2 * rbm.vbias[i];
-            rbm.hbias[j] += lr * d_hbiases[j] - ll2 * rbm.hbias[j];
-        }
-    }
-}
-
-pub fn sample(rbm : &RBM) -> Vector<f32> {
-    //  Create random vector
-    let mut v = Vector::from(rand_vec(rbm.visible_size));
-    let mut h = rbm.prop_visible(&v);
-
-    let mcmcs = 32;
-    for i in 1..mcmcs {
-        h = rbm.prop_visible(&v);
-        v = rbm.prop_hidden(&h);
-    }
-    v
-}
 
 pub fn create_rbm(vsize : usize, hsize : usize) -> RBM {
 

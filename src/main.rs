@@ -53,11 +53,11 @@ fn main() {
     let mut rbm = rbm::create_rbm(inputs[0].len(), hidden_nodes);
     for i in 1..100 {
         println!("Epoch {}", i);
-        rbm::epoch(&mut rbm, &inputs);
+        rbm.epoch(&inputs);
     }
 
     println!("Sampling");
-    let sample = rbm::sample(&rbm);
+    let sample = rbm.sample();
     println!("{:?}", sample);
 }
 
