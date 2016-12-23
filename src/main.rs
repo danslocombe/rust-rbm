@@ -12,10 +12,30 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub type Input = Vec<u8>;
-pub type Label = u32;
+pub type InPrim = u8;
+pub type Input = Vec<InPrim>;
+pub type Label = usize;
 
-pub fn test() {
+const LABEL_START : usize = 1;
+
+macro_rules! usize_from_stdin{
+    ($prompt:expr, $default:expr) => {
+        {
+            println!($prompt);
+            let mut input_text = String::new();
+            io::stdin()
+                .read_line(&mut input_text)
+                .expect("failed to read from stdin");
+
+            let trimmed = input_text.trim();
+            let mut result : usize = $default;
+            match trimmed.parse::<usize>() {
+                Ok(i)   => result = i,
+                Err(..) => println!("Failed to parse {}", input_text)
+            };
+            result
+        }
+    };
 }
 
 fn main() {
@@ -27,38 +47,58 @@ fn main() {
         Some(x) => x,
         None => panic!("No specified input data file")
     };
-    /*
     let train_label_file = match args.next(){
         Some(x) => x,
         None => panic!("No specified input labels")
     };
-    */
     println!("Loading input from files...");
+
     let inputs = inputs_from_file(&train_data_file);
-    //let labels = labels_from_file(&train_label_file);
+    let raw_labels : Vec<usize>= labels_from_file(&train_label_file);
+
+    //  Parse labels
+    let max_label = raw_labels.iter()
+                          .map(|&x| x as usize)
+                          .fold(0, |x, y| if x > y {x} else {y});
+
+    //  TODO map with partially applied 'parse label'
+    let labels : Vec<Input> = raw_labels.iter().map(|&x| {
+        let mut v : Input = Vec::new();
+        for i in LABEL_START..max_label{
+            v.push(if i == (x as usize) {1} else {0} as InPrim);
+        }
+        v
+    }).collect();
     println!("Done");
 
-    println!("Enter number of hidden nodes: ");
-    let mut input_text = String::new();
-    io::stdin()
-        .read_line(&mut input_text)
-        .expect("failed to read from stdin");
+    let hidden_nodes = usize_from_stdin!("Enter number of hidden nodes: ", 10) as usize;
 
-    let trimmed = input_text.trim();
-    let mut hidden_nodes = 10;
-    match trimmed.parse::<usize>() {
-        Ok(i)   => hidden_nodes = i,
-        Err(..) => println!("Failed to parse {}", input_text)
-    };
-    let mut rbm = rbm::create_rbm(inputs[0].len(), hidden_nodes);
+    let mut rbm = rbm::create_rbm(inputs[0].len(), hidden_nodes, max_label);
     for i in 1..100 {
+        //  TODO generate minibatch
+        //  ie. generate a random subset
+        let batch = &inputs;
+        let batch_labels = &labels;
+
         println!("Epoch {}", i);
-        rbm.epoch(&inputs);
+        rbm.epoch(batch, batch_labels);
     }
 
+    let sample_label_raw = usize_from_stdin!("Enter a label to generate a sample from: ", LABEL_START);
+    let sample_label = parse_label(sample_label_raw, max_label as usize);
+    
+
     println!("Sampling");
-    let sample = rbm.sample();
+    let sample = rbm.sample(sample_label);
     println!("{:?}", sample);
+}
+
+fn parse_label(label : usize, max_label : usize) -> Input{
+    let mut v : Input = Vec::new();
+    for i in LABEL_START..max_label{
+        v.push(if i == (label as usize) {1} else {0} as InPrim);
+    }
+    v
 }
 
 fn inputs_from_file(filename : &String) -> Vec<Input> {

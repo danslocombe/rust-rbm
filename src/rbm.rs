@@ -6,12 +6,19 @@ use Label;
 use rulinalg::matrix::{Matrix, BaseMatrix};
 use rulinalg::vector::Vector;
 
+struct LVProbs{
+    visible : Vector<f32>,
+    labels  : Vector<f32>,
+}
+
 pub struct RBM{
-    visible_size : usize, 
-    hidden_size  : usize, 
-    weights      : Matrix<f32>,
-    vbias        : Vector<f32>,
-    hbias        : Vector<f32>,
+    visible_size  : usize, 
+    hidden_size   : usize, 
+    labels        : usize, 
+    weights       : Matrix<f32>,
+    label_weights : Matrix<f32>,
+    vbias         : Vector<f32>,
+    hbias         : Vector<f32>,
 }
 
 impl RBM{
@@ -32,7 +39,7 @@ impl RBM{
         )
     }
 
-    pub fn epoch (&mut self, batch : &Vec<Input>){
+    pub fn epoch (&mut self, batch : &Vec<Input>, batch_labels : &Vec<Input>){
 
         let mut d_weights : Matrix<f32> = Matrix::zeros(self.visible_size, self.hidden_size);
         let mut d_vbiases : Vector<f32> = Vector::zeros(self.visible_size);
@@ -92,7 +99,7 @@ impl RBM{
         }
     }
 
-    pub fn sample(&self) -> Vector<f32> {
+    pub fn sample(&self, clamped_labels : Input) -> Vector<f32> {
 
         let mut v = Vector::from(rand_vec(self.visible_size));
         let mut h = self.prop_visible(&v);
@@ -133,7 +140,7 @@ pub fn randomise_weight_matrix(vsize : usize, hsize : usize) -> Matrix<f32> {
 }
 
 
-pub fn create_rbm(vsize : usize, hsize : usize) -> RBM {
+pub fn create_rbm(vsize : usize, hsize : usize, labels : usize) -> RBM {
 
     let mut vb = Vec::new();
     for _ in 0..vsize {
@@ -146,10 +153,12 @@ pub fn create_rbm(vsize : usize, hsize : usize) -> RBM {
     }
 
     RBM {
-        visible_size : vsize,
-        hidden_size  : hsize,
-        weights      : randomise_weight_matrix(vsize, hsize),
-        vbias        : Vector::new(vb),
-        hbias        : Vector::new(hb),
+        visible_size  : vsize,
+        hidden_size   : hsize,
+        labels        : labels,
+        weights       : randomise_weight_matrix(vsize, hsize),
+        label_weights : randomise_weight_matrix(labels, hsize),
+        vbias         : Vector::new(vb),
+        hbias         : Vector::new(hb),
     }
 }
