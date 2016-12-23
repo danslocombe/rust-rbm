@@ -18,8 +18,8 @@ pub type Label = usize;
 
 const LABEL_START : usize = 1;
 
-macro_rules! usize_from_stdin{
-    ($prompt:expr, $default:expr) => {
+macro_rules! from_stdin{
+    ($prompt:expr, $t:ty, $default:expr) => {
         {
             println!($prompt);
             let mut input_text = String::new();
@@ -28,8 +28,8 @@ macro_rules! usize_from_stdin{
                 .expect("failed to read from stdin");
 
             let trimmed = input_text.trim();
-            let mut result : usize = $default;
-            match trimmed.parse::<usize>() {
+            let mut result : $t= $default;
+            match trimmed.parse::<$t>() {
                 Ok(i)   => result = i,
                 Err(..) => println!("Failed to parse {}", input_text)
             };
@@ -71,7 +71,7 @@ fn main() {
     }).collect();
     println!("Done");
 
-    let hidden_nodes = usize_from_stdin!("Enter number of hidden nodes: ", 10) as usize;
+    let hidden_nodes = from_stdin!("Enter number of hidden nodes: ", usize, 10) as usize;
 
     let mut rbm = rbm::create_rbm(inputs[0].len(), hidden_nodes, max_label);
     for i in 1..100 {
@@ -84,7 +84,7 @@ fn main() {
         rbm.epoch(batch, batch_labels);
     }
 
-    let sample_label_raw = usize_from_stdin!("Enter a label to generate a sample from: ", LABEL_START);
+    let sample_label_raw = from_stdin!("Enter a label to generate a sample from: ", usize, LABEL_START);
     let sample_label = parse_label(sample_label_raw, max_label as usize);
     
 
