@@ -11,6 +11,22 @@ use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::result;
+use std::fmt;
+
+pub struct RBMError(String);
+impl fmt::Display for RBMError {
+    fn fmt(&self, formatter : &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
+        self.0.fmt(formatter)
+    }
+}
+impl<'a> From<&'a str> for RBMError {
+    fn from(s : &'a str) -> Self {
+        RBMError(s.to_owned())
+    }
+}
+
+pub type Result<T> = result::Result<T, RBMError>;
 
 pub type InPrim = u8;
 pub type Input = Vec<InPrim>;
@@ -39,22 +55,19 @@ macro_rules! from_stdin{
 }
 
 fn main() {
-    
+    try_main().map_err(|e| println!("Error: {}", e));
+}
+
+fn try_main() -> Result<()> {
     let mut args = env::args();
 
     args.next();
-    let train_data_file = match args.next(){
-        Some(x) => x,
-        None => panic!("No specified input data file")
-    };
-    let train_label_file = match args.next(){
-        Some(x) => x,
-        None => panic!("No specified input labels")
-    };
+    let train_data_file = args.next().ok_or("No specified input data file")?;
+    let train_label_file = args.next().ok_or("No specified input labels")?;    
     println!("Loading input from files...");
 
-    let inputs = inputs_from_file(&train_data_file);
-    let raw_labels : Vec<usize>= labels_from_file(&train_label_file);
+    let inputs = inputs_from_file(&train_data_file)?;
+    let raw_labels : Vec<usize>= labels_from_file(&train_label_file)?;
 
     //  Parse labels
     let max_label = raw_labels.iter()
@@ -91,6 +104,8 @@ fn main() {
     println!("Sampling");
     let sample = rbm.sample(sample_label);
     println!("{:?}", sample);
+
+    Ok(())
 }
 
 fn parse_label(label : usize, max_label : usize) -> Input{
@@ -101,52 +116,46 @@ fn parse_label(label : usize, max_label : usize) -> Input{
     v
 }
 
-fn inputs_from_file(filename : &String) -> Vec<Input> {
-    let f = read_file(&filename);
+fn inputs_from_file(filename : &String) -> Result<Vec<Input>> {
+    let f = read_file(&filename)?;
     let mut rdr = csv::Reader::from_string(f).has_headers(false);
 
     //  Convert strings to uint8s
+    //  Implicitly convert Vec<Result<_>> to Result<Vec<_>>
     rdr.records().map(|r| {
         r.unwrap().iter().map(|x|{
-            match x.parse::<u8>(){
-                Err(why) => panic!("Error in csv file, {}\n{}", filename, why),
-                Ok(a) => a,
-            }
+            x.parse::<u8>().map_err(|why| {
+                RBMError(format!("Malformed CSV file, {}\n{}", filename, why))
+            })
         }).collect()
     }).collect()
 }
 
-fn labels_from_file(filename : &String) -> Vec<Label> {
-    let f = read_file(&filename);
+fn labels_from_file(filename : &String) -> Result<Vec<Label>> {
+    let f = read_file(&filename)?;
     f.split("\n").map(|x|{
-        match x.parse::<Label>(){
-            Err(why) => panic!("Error in label file, {}\n{}", filename, why),
-            Ok(a) => a,
-        }
-    }).collect::<Vec<Label>>()
+        x.parse::<Label>().map_err(|why| {
+            RBMError(format!("Error in label file, {}\n{}", filename, why))
+        })
+    }).collect()
 }
 
-fn read_file(s : &String) -> String {
+fn read_file(s : &String) -> Result<String> {
     // Create a path to the desired file
     let path = Path::new(s);
     let display = path.display();
 
-    // Open the path in read-only mode, returns `io::Result<File>`
-    let mut file = match File::open(&path) {
-        // The `description` method of `io::Error` returns a string that
-        // describes the error
-        Err(why) => panic!("couldn't open {}: {}", display,
-                                                   why.description()),
-        Ok(file) => file,
-    };
+    // Open the path in read-only mode
+    let mut file = File::open(&path).map_err(|why| {
+        RBMError(format!("Couldn't open {}: {}", display,
+                                                   why.description()))
+    })?;
 
-    // Read the file contents into a string, returns `io::Result<usize>`
+    // Read the file contents into a string
     let mut s = String::new();
-    match file.read_to_string(&mut s) {
-        Err(why) => panic!("couldn't read {}: {}", display,
-                                                   why.description()),
-        Ok(_) => ()
-    }
-    s
-    // `file` goes out of scope, and the "hello.txt" file gets closed
+    file.read_to_string(&mut s).map_err(|why| {
+        RBMError(format!("couldn't read {}: {}", display,
+                                                   why.description()))
+    });
+    Ok(s)
 }
