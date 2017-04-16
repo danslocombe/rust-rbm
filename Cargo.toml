@@ -7,3 +7,4 @@ authors = ["Dan Slocombe <ds4314@ic.ac.uk>"]
 rand = "0.3.14"
 csv = "0.14.7"
 rulinalg = "0.3.7"
+kronecker = "0.1"
